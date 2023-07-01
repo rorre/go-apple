@@ -27,6 +27,9 @@ type Renderer struct {
 	frames       []string
 	currentFrame int
 	maxFrame     int
+	lastFrame    [][]int
+	width        int
+	height       int
 }
 
 func bToMb(b uint64) uint64 {
@@ -43,9 +46,9 @@ func (r *Renderer) RenderFrame() bool {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 
-	fmt.Print("\033[H\033[2J")
 	fmt.Print(r.frames[0])
-	fmt.Printf("Frame: %d | Memory: %dMiB", r.currentFrame, bToMb(m.Alloc))
+	fmt.Printf("\033[%d;%dH", r.height, 0)
+	fmt.Printf("Frame: %d | Memory: %dMiB | Buffer: %d", r.currentFrame, bToMb(m.Alloc), len(r.frames))
 	r.currentFrame++
 
 	// Remove the frame that has been drawn since it won't be
@@ -110,7 +113,7 @@ func IntMin(a, b int) int {
 	return b
 }
 
-func GeneratePixels(w, h int, im image.Image) string {
+func GeneratePixels(w, h int, im image.Image, lastFrame [][]int) string {
 	var sb strings.Builder
 	// Resize image before processing anything
 	bounds := im.Bounds()
@@ -142,10 +145,13 @@ func GeneratePixels(w, h int, im image.Image) string {
 			// https://en.wikipedia.org/wiki/Grayscale
 			// why the hell is it ranging from 0 - 65535 instead of 0-255 wtf
 			lum := (0.299*float64(r) + 0.587*float64(g) + 0.114*float64(b)) / 65535
-			idx := math.Max(math.Min(4, lum*5), 0)
-			sb.WriteString(CHARS[int(idx)])
+			idx := int(math.Max(math.Min(4, lum*5), 0))
+			if lastFrame[y][x] != idx {
+				// fmt.Printf("%d, %d", y, x)
+				lastFrame[y][x] = idx
+				sb.WriteString(fmt.Sprintf("\033[%d;%dH%s", y, x*2, CHARS[idx]))
+			}
 		}
-		sb.WriteString("\n")
 	}
 	output := sb.String()
 	return output
@@ -164,7 +170,7 @@ func GenerateFrames(baseDir string, w, h, bufsize int, fileNames []string, r *Re
 		reader.Close()
 
 		// Dividing width by 2 since we use 2 chars to draw each pixel
-		pixels := GeneratePixels(w/2, h-1, im)
+		pixels := GeneratePixels(w/2, h-1, im, r.lastFrame)
 		r.Add(pixels, i, bufsize)
 	}
 }
@@ -193,8 +199,23 @@ func main() {
 		panic(err)
 	}
 
+	baseArray := make([][]int, h)
+	for y := 0; y < h; y++ {
+		xArr := make([]int, w)
+		for x := 0; x < w; x++ {
+			xArr[x] = -1
+		}
+		baseArray[y] = xArr
+	}
 	// Create our renderer
-	r := Renderer{frames: make([]string, 0), currentFrame: 0, maxFrame: len(fileNames)}
+	r := Renderer{
+		frames:       make([]string, 0),
+		currentFrame: 0,
+		maxFrame:     len(fileNames),
+		lastFrame:    baseArray,
+		width:        w,
+		height:       h,
+	}
 
 	// Let the frames be generated asynchronously
 	go GenerateFrames(framesDir, w, h, *bufsize, fileNames, &r)
