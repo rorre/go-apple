@@ -57,14 +57,14 @@ func (r *Renderer) RenderFrame() bool {
 }
 
 func (r *Renderer) Add(frameData string, i, bufsize int) {
-  for {
-    r.mu.Lock()
-    if i - r.currentFrame < bufsize {
-      break
-    } else {
-      r.mu.Unlock()
-    }
-  }
+	for {
+		r.mu.Lock()
+		if i-r.currentFrame < bufsize {
+			break
+		} else {
+			r.mu.Unlock()
+		}
+	}
 	r.frames = append(r.frames, frameData)
 	r.mu.Unlock()
 }
@@ -171,16 +171,16 @@ func GenerateFrames(baseDir string, w, h, bufsize int, fileNames []string, r *Re
 
 func main() {
 	delay := flag.Int("delay", 0, "Delay to be added before render starts")
-  bufsize := flag.Int("bufsize", 500, "How many frames to buffer")
+	bufsize := flag.Int("bufsize", 500, "How many frames to buffer")
 	flag.Parse()
 
 	framesDir := flag.Arg(0)
 	audioPath := flag.Arg(1)
 
-  if framesDir == "" || audioPath == "" {
-    flag.PrintDefaults()
-    return
-  }
+	if framesDir == "" || audioPath == "" {
+		flag.PrintDefaults()
+		return
+	}
 
 	// Terminal size
 	w, h, err := term.GetSize(int(os.Stdout.Fd()))
