@@ -139,6 +139,7 @@ func GeneratePixels(w, h int, im image.Image, lastFrame [][]int) string {
 	im = nil
 
 	for y := 0; y < h; y++ {
+		lastCallX := -99
 		for x := 0; x < w; x++ {
 			r, g, b, _ := newImg.At(x, y).RGBA()
 
@@ -149,7 +150,12 @@ func GeneratePixels(w, h int, im image.Image, lastFrame [][]int) string {
 			if lastFrame[y][x] != idx {
 				// fmt.Printf("%d, %d", y, x)
 				lastFrame[y][x] = idx
-				sb.WriteString(fmt.Sprintf("\033[%d;%dH%s", y, x*2, CHARS[idx]))
+
+				if x-lastCallX != 1 {
+					sb.WriteString(fmt.Sprintf("\033[%d;%dH", y, x*2))
+					lastCallX = x
+				}
+				sb.WriteString(CHARS[idx])
 			}
 		}
 	}
